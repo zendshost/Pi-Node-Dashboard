@@ -1,97 +1,83 @@
-const dockerStatusEl = document.getElementById('dockerStatus');
-const coreStateEl = document.getElementById('coreState');
-const coreLedgerEl = document.getElementById('coreLedger');
-const corePeersEl = document.getElementById('corePeers');
-const horizonLedgerEl = document.getElementById('horizonLedger');
-const horizonClosedAtEl = document.getElementById('horizonClosedAt');
-const syncProgressEl = document.getElementById('syncProgress');
-const syncPercentEl = document.getElementById('syncPercent');
+let ledgerChart;
+let syncGauge;
 
-const horizonVersionEl = document.getElementById('horizonVersion');
-const coreVersionEl = document.getElementById('coreVersion');
-const ingestLatestLedgerEl = document.getElementById('ingestLatestLedger');
-const historyLatestLedgerEl = document.getElementById('historyLatestLedger');
-const historyLedgerClosedAtEl = document.getElementById('historyLedgerClosedAt');
-const coreLatestLedgerEl = document.getElementById('coreLatestLedger');
-const networkPassphraseEl = document.getElementById('networkPassphrase');
-const currentProtocolVersionEl = document.getElementById('currentProtocolVersion');
-const supportedProtocolVersionEl = document.getElementById('supportedProtocolVersion');
+async function loadStatus() {
+    const res = await fetch('/api/status');
+    const data = await res.json();
 
-const ctx = document.getElementById('ledgerChart').getContext('2d');
-const ledgerChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'Horizon Ledger',
-            data: [],
-            backgroundColor: 'rgba(255, 204, 0, 0.2)',
-            borderColor: 'rgba(255, 204, 0, 1)',
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        scales: {
-            x: { 
-                title: { display: true, text: 'Time', color: '#e0e0e0' },
-                ticks: { color: '#e0e0e0' },
-                grid: { color: '#333' }
+    // LED helper
+    const led = (state) => {
+        if (state.includes("Running") || state.includes("Synced"))
+            return "<span class='led led-green'></span>";
+        return "<span class='led led-red'></span>";
+    };
+
+    document.getElementById("docker").innerHTML = led(data.containerStatus) + data.containerStatus;
+    document.getElementById("core").innerHTML   = led(data.coreStatus.state) + data.coreStatus.state;
+
+    document.getElementById("ledger").innerText = data.coreStatus.ledger;
+    document.getElementById("peers").innerText = data.coreStatus.peers;
+
+    // Info block
+    document.getElementById("info").innerHTML = `
+        Horizon Version: ${data.horizonInfo.horizonVersion}<br>
+        Core Version: ${data.horizonInfo.coreVersion}<br>
+        Latest Ledger: ${data.horizonInfo.coreLatestLedger}<br>
+        History Ledger Closed At: ${data.horizonInfo.historyLedgerClosedAt}<br>
+        Network: ${data.horizonInfo.networkPassphrase}<br>
+        Protocol: ${data.horizonInfo.currentProtocolVersion}
+    `;
+
+    updateCharts(data);
+}
+
+function updateCharts(data) {
+    const ledger = data.coreStatus.ledger;
+    const sync = parseFloat(data.syncProgress);
+
+    // Ledger line chart init/update
+    if (!ledgerChart) {
+        ledgerChart = new Chart(document.getElementById("ledgerChart"), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: "Ledger",
+                    data: [],
+                    borderColor: "#4c8dff",
+                    borderWidth: 2
+                }]
             },
-            y: { 
-                title: { display: true, text: 'Ledger Sequence', color: '#e0e0e0' },
-                ticks: { color: '#e0e0e0' },
-                grid: { color: '#333' }
-            }
-        },
-        plugins: {
-            legend: { labels: { color: '#e0e0e0' } }
-        }
+            options: { animation: false }
+        });
     }
-});
 
-async function fetchStatus() {
-    try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
+    ledgerChart.data.labels.push("");
+    ledgerChart.data.datasets[0].data.push(ledger);
+    ledgerChart.update();
 
-        dockerStatusEl.innerText = data.containerStatus;
-        coreStateEl.innerText = data.coreStatus.state;
-        coreLedgerEl.innerText = data.coreStatus.ledger;
-        corePeersEl.innerText = data.coreStatus.peers;
-        horizonLedgerEl.innerText = data.horizonStatus.latestLedger;
-        horizonClosedAtEl.innerText = data.horizonStatus.closedAt;
-
-        syncProgressEl.style.width = data.syncProgress + '%';
-        syncPercentEl.innerText = data.syncProgress + '%';
-
-        // Chart update
-        const now = new Date().toLocaleTimeString();
-        ledgerChart.data.labels.push(now);
-        ledgerChart.data.datasets[0].data.push(data.horizonStatus.latestLedger);
-        if (ledgerChart.data.labels.length > 20) {
-            ledgerChart.data.labels.shift();
-            ledgerChart.data.datasets[0].data.shift();
-        }
-        ledgerChart.update();
-
-        // Horizon & Core info
-        horizonVersionEl.innerText = data.horizonInfo.horizonVersion;
-        coreVersionEl.innerText = data.horizonInfo.coreVersion;
-        ingestLatestLedgerEl.innerText = data.horizonInfo.ingestLatestLedger;
-        historyLatestLedgerEl.innerText = data.horizonInfo.historyLatestLedger;
-        historyLedgerClosedAtEl.innerText = data.horizonInfo.historyLedgerClosedAt;
-        coreLatestLedgerEl.innerText = data.horizonInfo.coreLatestLedger;
-        networkPassphraseEl.innerText = data.horizonInfo.networkPassphrase;
-        currentProtocolVersionEl.innerText = data.horizonInfo.currentProtocolVersion;
-        supportedProtocolVersionEl.innerText = data.horizonInfo.supportedProtocolVersion;
-
-    } catch(err) {
-        console.error('Fetch error:', err);
+    // Gauge chart init/update
+    if (!syncGauge) {
+        syncGauge = new Chart(document.getElementById("syncGauge"), {
+            type: "doughnut",
+            data: {
+                datasets: [{
+                    data: [sync, 100 - sync],
+                    backgroundColor: ["#22c55e", "#1e293b"],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                cutout: "75%",
+                plugins: { tooltip: { enabled: false } }
+            }
+        });
+    } else {
+        syncGauge.data.datasets[0].data = [sync, 100 - sync];
+        syncGauge.update();
     }
 }
 
-fetchStatus();
-setInterval(fetchStatus, 10000);
+// Auto refresh every 3 seconds
+setInterval(loadStatus, 3000);
+loadStatus();
