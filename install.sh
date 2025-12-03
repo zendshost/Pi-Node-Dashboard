@@ -1,65 +1,120 @@
 #!/bin/bash
 
-# --- Memastikan skrip berjalan dengan hak akses root (sudo) ---
+# ==========================================
+#  Pi Node Dashboard - Auto Installer (Pro)
+# ==========================================
+
+green="\e[32m"
+yellow="\e[33m"
+red="\e[31m"
+cyan="\e[36m"
+reset="\e[0m"
+
+echo -e "${cyan}"
+echo "=========================================="
+echo "   Pi Node Dashboard - Auto Installer"
+echo "=========================================="
+echo -e "${reset}"
+
+# ------------------------------
+# Check root
+# ------------------------------
 if [[ $EUID -ne 0 ]]; then
-   echo "Skrip ini harus dijalankan sebagai root atau dengan sudo."
+   echo -e "${red}ERROR: Jalankan dengan sudo atau root.${reset}"
    exit 1
 fi
 
-echo "--- Memulai instalasi dan pengaturan Pi-Node-Dashboard ---"
-echo ""
+# ------------------------------
+# Update system
+# ------------------------------
+echo -e "${yellow}→ Update system...${reset}"
+apt update -y
 
-# 1. Menginstal npm menggunakan apt
-echo "-> 1. Menginstal npm..."
-apt update
-apt install npm -y
+# ------------------------------
+# Install Node.js LTS (18.x)
+# ------------------------------
+echo -e "${yellow}→ Install Node.js 18 LTS...${reset}"
 
-# Memeriksa apakah instalasi npm berhasil
-if [ $? -ne 0 ]; then
-    echo "ERROR: Instalasi npm gagal. Hentikan skrip."
+curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+apt install -y nodejs
+
+if ! command -v node &> /dev/null; then
+    echo -e "${red}ERROR: Node.js gagal diinstal.${reset}"
     exit 1
 fi
-echo "   npm berhasil diinstal."
+
+echo -e "${green}✔ Node.js terinstal (versi: $(node -v))${reset}"
 echo ""
 
-# 2. Menginstal PM2 secara global
-echo "-> 2. Menginstal PM2 secara global..."
-npm install pm2 -g
-echo "   PM2 berhasil diinstal."
+# ------------------------------
+# Install PM2
+# ------------------------------
+echo -e "${yellow}→ Install PM2...${reset}"
+npm install -g pm2 &>/dev/null
+
+echo -e "${green}✔ PM2 terinstal${reset}"
 echo ""
 
-# 3. Kloning repositori Git
-echo "-> 3. Kloning repositori Pi-Node-Dashboard..."
-git clone https://github.com/zendshost/Pi-Node-Dashboard.git
+# ------------------------------
+# Clone Repo
+# ------------------------------
 
-# Memeriksa apakah kloning berhasil
-if [ $? -ne 0 ]; then
-    echo "ERROR: Kloning repositori gagal. Hentikan skrip."
-    exit 1
+if [ -d "Pi-Node-Dashboard" ]; then
+    echo -e "${yellow}→ Folder Pi-Node-Dashboard sudah ada. Mengupdate repo...${reset}"
+    cd Pi-Node-Dashboard
+    git pull
+else
+    echo -e "${yellow}→ Clone repository Pi-Node-Dashboard...${reset}"
+    git clone https://github.com/zendshost/Pi-Node-Dashboard.git
+    cd Pi-Node-Dashboard
 fi
-echo "   Kloning berhasil."
+
+echo -e "${green}✔ Repository siap${reset}"
 echo ""
 
-# 4. Pindah ke direktori dan menginstal dependensi Node.js
-echo "-> 4. Pindah direktori dan menginstal dependensi Node.js..."
-cd Pi-Node-Dashboard
-npm i
-echo "   Dependensi berhasil diinstal."
+# ------------------------------
+# Install Dependencies
+# ------------------------------
+echo -e "${yellow}→ Install dependencies (npm install)...${reset}"
+
+npm install &>/dev/null
+
+echo -e "${green}✔ Dependencies terinstal${reset}"
 echo ""
 
-# 5. Menjalankan server menggunakan PM2
-echo "-> 5. Menjalankan server.js dengan PM2..."
-pm2 start server.js
+# ------------------------------
+# Start Server via PM2
+# ------------------------------
+echo -e "${yellow}→ Menjalankan server dengan PM2...${reset}"
 
-# Menampilkan status PM2
-echo ""
-echo "--- Status PM2: ---"
-pm2 status
+pm2 delete pi-dashboard &>/dev/null
+pm2 start server.js --name pi-dashboard
 
-# 6. Menampilkan informasi akses
+pm2 save
+pm2 startup systemd -u $USER --hp $HOME >/dev/null
+
+echo -e "${green}✔ PM2 berjalan sebagai service${reset}"
 echo ""
-echo "========================================================"
-echo "✅ Instalasi selesai!"
-echo "Server Running pada **IP:3000** (port default untuk Pi-Node-Dashboard)."
-echo "Gunakan perintah 'pm2 logs' untuk melihat log server."
-echo "========================================================"
+
+# ------------------------------
+# Get Server IP
+# ------------------------------
+SERVER_IP=$(hostname -I | awk '{print $1}')
+
+echo -e "${cyan}"
+echo "=========================================="
+echo "   🎉 INSTALASI SELESAI!"
+echo "=========================================="
+echo -e "${reset}"
+
+echo -e "${green}Dashboard dapat diakses di:${reset}"
+echo -e "${yellow}http://$SERVER_IP:3000${reset}"
+echo ""
+
+echo -e "${cyan}PM2 Commands:${reset}"
+echo "  pm2 status"
+echo "  pm2 logs pi-dashboard"
+echo "  pm2 restart pi-dashboard"
+echo ""
+
+echo -e "${green}Selesai! Dashboard berjalan otomatis 24/7 🎯${reset}"
