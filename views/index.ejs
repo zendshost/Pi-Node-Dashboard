@@ -1,129 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Pi Node Dashboard</title>
+    <title>Pi Node Dashboard — NeoCyber</title>
     <link rel="stylesheet" href="/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <header>
-        <h1>Pi Node Dashboard</h1>
-    </header>
 
-    <section class="status-cards">
-        <div class="card" id="dockerCard">
-            <h2>Docker Container</h2>
-            <p id="dockerStatus">Loading...</p>
-        </div>
+<div class="navbar">⚡ Pi Node Dashboard — NeoCyber Edition ⚡</div>
 
-        <div class="card" id="coreCard">
-            <h2>Stellar Core</h2>
-            <p id="coreState">Loading...</p>
-            <p>Ledger: <span id="coreLedger">0</span></p>
-            <p>Peers: <span id="corePeers">0</span></p>
-        </div>
+<div class="container">
 
-        <div class="card" id="horizonCard">
-            <h2>Horizon</h2>
-            <p>Latest Ledger: <span id="horizonLedger">0</span></p>
-            <p>Ledger Closed At: <span id="horizonClosedAt">-</span></p>
-            <p>Sync Progress: <span id="syncProgress">0%</span></p>
-        </div>
-    </section>
+    <div class="card">
+        <h2>🟢 Node Status</h2>
+        <div><span class="label">Docker Container</span> <span id="docker"></span></div>
+        <div><span class="label">Stellar Core</span> <span id="core"></span></div>
+        <div><span class="label">Ledger</span> <span id="ledger"></span></div>
+        <div><span class="label">Peers</span> <span id="peers"></span></div>
+    </div>
 
-    <section>
-        <canvas id="ledgerChart"></canvas>
-    </section>
+    <div class="card">
+        <h2>📈 Realtime Ledger Chart</h2>
+        <canvas id="ledgerChart" class="chart-container"></canvas>
+    </div>
 
-    <section class="info">
-        <h2>Horizon & Core Info</h2>
-        <ul>
-            <li>Horizon Version: <span id="horizonVersion">-</span></li>
-            <li>Core Version: <span id="coreVersion">-</span></li>
-            <li>Ingest Latest Ledger: <span id="ingestLedger">0</span></li>
-            <li>History Latest Ledger: <span id="historyLedger">0</span></li>
-            <li>History Ledger Closed At: <span id="historyClosedAt">-</span></li>
-            <li>Core Latest Ledger: <span id="coreLatestLedger">0</span></li>
-            <li>Network Passphrase: <span id="networkPassphrase">-</span></li>
-            <li>Protocol Version: <span id="protocolVersion">0</span></li>
-            <li>Supported Protocol Version: <span id="supportedProtocolVersion">0</span></li>
-        </ul>
-    </section>
+    <div class="card">
+        <h2>🔥 Sync Progress</h2>
+        <canvas id="syncGauge" class="sync-meter"></canvas>
+    </div>
 
-<script>
-let ledgerData = [];
-let ledgerLabels = [];
+    <div class="card">
+        <h2>📘 Horizon & Core Info</h2>
+        <div id="info"></div>
+    </div>
 
-async function fetchStatus() {
-    try {
-        const res = await fetch('/api/status');
-        const data = await res.json();
+</div>
 
-        // Update dashboard
-        document.getElementById('dockerStatus').innerText = data.containerStatus;
-        document.getElementById('coreState').innerText = data.coreStatus.state;
-        document.getElementById('coreLedger').innerText = data.coreStatus.ledger;
-        document.getElementById('corePeers').innerText = data.coreStatus.peers;
-        document.getElementById('horizonLedger').innerText = data.horizonStatus.latestLedger;
-        document.getElementById('horizonClosedAt').innerText = data.horizonStatus.closedAt;
-        document.getElementById('syncProgress').innerText = data.syncProgress + '%';
-
-        document.getElementById('horizonVersion').innerText = data.horizonInfo.horizonVersion;
-        document.getElementById('coreVersion').innerText = data.horizonInfo.coreVersion;
-        document.getElementById('ingestLedger').innerText = data.horizonInfo.ingestLatestLedger;
-        document.getElementById('historyLedger').innerText = data.horizonInfo.historyLatestLedger;
-        document.getElementById('historyClosedAt').innerText = data.horizonInfo.historyLedgerClosedAt;
-        document.getElementById('coreLatestLedger').innerText = data.horizonInfo.coreLatestLedger;
-        document.getElementById('networkPassphrase').innerText = data.horizonInfo.networkPassphrase;
-        document.getElementById('protocolVersion').innerText = data.horizonInfo.currentProtocolVersion;
-        document.getElementById('supportedProtocolVersion').innerText = data.horizonInfo.supportedProtocolVersion;
-
-        // Ledger Chart
-        ledgerData.push(data.horizonStatus.latestLedger);
-        ledgerLabels.push(new Date().toLocaleTimeString());
-        if (ledgerData.length > 20) {
-            ledgerData.shift();
-            ledgerLabels.shift();
-        }
-        ledgerChart.data.labels = ledgerLabels;
-        ledgerChart.data.datasets[0].data = ledgerData;
-        ledgerChart.update();
-
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-const ctx = document.getElementById('ledgerChart').getContext('2d');
-const ledgerChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: ledgerLabels,
-        datasets: [{
-            label: 'Horizon Ledger',
-            data: ledgerData,
-            borderColor: '#4caf50',
-            backgroundColor: 'rgba(76, 175, 80, 0.2)',
-            fill: true,
-            tension: 0.3
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: { display: true },
-        },
-        scales: {
-            x: { display: true },
-            y: { display: true }
-        }
-    }
-});
-
-// Auto refresh
-setInterval(fetchStatus, 2000);
-fetchStatus();
-</script>
+<script src="/script.js"></script>
 </body>
 </html>
