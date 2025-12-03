@@ -12,7 +12,7 @@ app.set('view engine', 'ejs');
 
 const HORIZON_URL = 'http://localhost:31401';
 
-// ======= Helpers =======
+// ===== Helpers =====
 function execCommand(cmd) {
     return new Promise((resolve) => {
         exec(cmd, (err, stdout, stderr) => {
@@ -24,7 +24,7 @@ function execCommand(cmd) {
 
 async function fetchHorizonInfo() {
     try {
-        const res = await fetch(`${HORIZON_URL}/`);
+        const res = await fetch(HORIZON_URL);
         const data = await res.json();
         return {
             horizonVersion: data.horizon_version || '-',
@@ -36,7 +36,8 @@ async function fetchHorizonInfo() {
             networkPassphrase: data.network_passphrase || '-',
             currentProtocolVersion: data.current_protocol_version ?? 0,
             supportedProtocolVersion: data.supported_protocol_version ?? 0,
-            coreSupportedProtocolVersion: data.core_supported_protocol_version ?? 0
+            coreSupportedProtocolVersion: data.core_supported_protocol_version ?? 0,
+            peers: data.peers?.authenticated_count ?? 'N/A'
         };
     } catch (err) {
         console.error('Horizon fetch error:', err);
@@ -50,50 +51,36 @@ async function fetchHorizonInfo() {
             networkPassphrase: '-',
             currentProtocolVersion: 0,
             supportedProtocolVersion: 0,
-            coreSupportedProtocolVersion: 0
+            coreSupportedProtocolVersion: 0,
+            peers: 'N/A'
         };
     }
 }
 
-// ======= Routes =======
+// ===== Routes =====
 app.get('/', (req, res) => {
     res.render('index');
 });
 
 app.get('/api/status', async (req, res) => {
     // Docker container status
-    const dockerStatus = await execCommand('docker ps --filter "name=mainnet" --format "{{.Status}}"');
-    const containerStatus = dockerStatus.includes('Up') ? 'Running ✅' : 'Stopped ❌';
+    const dockerStatusRaw = await execCommand('docker ps --filter "name=mainnet" --format "{{.Status}}"');
+    const containerStatus = dockerStatusRaw.includes('Up') ? 'Running ✅' : 'Stopped ❌';
 
-    // Stellar Core (via pi-node protocol-status JSON)
-    let coreStatus = { state: 'Error ❌', ledger: 0, peers: 'N/A' };
-    try {
-        const coreRaw = await execCommand('docker exec mainnet pi-node protocol-status');
-        const coreJson = JSON.parse(coreRaw);
-        coreStatus = {
-            state: coreJson.info.state || 'Error ❌',
-            ledger: coreJson.info.ledger.num || 0,
-            peers: coreJson.info.peers.authenticated_count ?? 0
-        };
-    } catch (err) {
-        console.error('Core fetch error:', err);
-    }
-
-    // Horizon
-    let horizonStatus = { latestLedger: 0, closedAt: '-' };
-    try {
-        const horizonRes = await fetch(`${HORIZON_URL}/`);
-        const horizonData = await horizonRes.json();
-        horizonStatus.latestLedger = horizonData.core_latest_ledger ?? 0;
-        horizonStatus.closedAt = horizonData.history_latest_ledger_closed_at || '-';
-    } catch (err) {
-        console.error('Horizon status error:', err);
-    }
-
-    // Horizon info
+    // Horizon + Core info
     const horizonInfo = await fetchHorizonInfo();
 
-    // Sync Progress (basic estimate)
+    const coreStatus = {
+        state: horizonInfo.coreLatestLedger > 0 ? 'Synced ✅' : 'Error ❌',
+        ledger: horizonInfo.coreLatestLedger,
+        peers: horizonInfo.peers
+    };
+
+    const horizonStatus = {
+        latestLedger: horizonInfo.coreLatestLedger,
+        closedAt: horizonInfo.historyLedgerClosedAt
+    };
+
     let syncProgress = 0;
     if (horizonStatus.latestLedger && coreStatus.ledger) {
         syncProgress = ((horizonStatus.latestLedger / coreStatus.ledger) * 100).toFixed(2);
@@ -108,4 +95,4 @@ app.get('/api/status', async (req, res) => {
     });
 });
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Pi Node Dashboard running at http://localhost:${PORT}`));
