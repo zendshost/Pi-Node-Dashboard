@@ -7,6 +7,16 @@ const horizonClosedAtEl = document.getElementById('horizonClosedAt');
 const syncProgressEl = document.getElementById('syncProgress');
 const syncPercentEl = document.getElementById('syncPercent');
 
+const horizonVersionEl = document.getElementById('horizonVersion');
+const coreVersionEl = document.getElementById('coreVersion');
+const ingestLatestLedgerEl = document.getElementById('ingestLatestLedger');
+const historyLatestLedgerEl = document.getElementById('historyLatestLedger');
+const historyLedgerClosedAtEl = document.getElementById('historyLedgerClosedAt');
+const coreLatestLedgerEl = document.getElementById('coreLatestLedger');
+const networkPassphraseEl = document.getElementById('networkPassphrase');
+const currentProtocolVersionEl = document.getElementById('currentProtocolVersion');
+const supportedProtocolVersionEl = document.getElementById('supportedProtocolVersion');
+
 const ctx = document.getElementById('ledgerChart').getContext('2d');
 const ledgerChart = new Chart(ctx, {
     type: 'line',
@@ -23,14 +33,15 @@ const ledgerChart = new Chart(ctx, {
         }]
     },
     options: {
+        responsive: true,
         scales: {
             x: { 
-                title: { display: true, text: 'Time' },
+                title: { display: true, text: 'Time', color: '#e0e0e0' },
                 ticks: { color: '#e0e0e0' },
                 grid: { color: '#333' }
             },
             y: { 
-                title: { display: true, text: 'Ledger Sequence' },
+                title: { display: true, text: 'Ledger Sequence', color: '#e0e0e0' },
                 ticks: { color: '#e0e0e0' },
                 grid: { color: '#333' }
             }
@@ -53,21 +64,29 @@ async function fetchStatus() {
         horizonLedgerEl.innerText = data.horizonStatus.latestLedger;
         horizonClosedAtEl.innerText = data.horizonStatus.closedAt;
 
-        // Progress bar
         syncProgressEl.style.width = data.syncProgress + '%';
         syncPercentEl.innerText = data.syncProgress + '%';
 
-        // Update chart
+        // Chart update
         const now = new Date().toLocaleTimeString();
         ledgerChart.data.labels.push(now);
         ledgerChart.data.datasets[0].data.push(data.horizonStatus.latestLedger);
-
         if (ledgerChart.data.labels.length > 20) {
             ledgerChart.data.labels.shift();
             ledgerChart.data.datasets[0].data.shift();
         }
-
         ledgerChart.update();
+
+        // Horizon & Core info
+        horizonVersionEl.innerText = data.horizonInfo.horizonVersion;
+        coreVersionEl.innerText = data.horizonInfo.coreVersion;
+        ingestLatestLedgerEl.innerText = data.horizonInfo.ingestLatestLedger;
+        historyLatestLedgerEl.innerText = data.horizonInfo.historyLatestLedger;
+        historyLedgerClosedAtEl.innerText = data.horizonInfo.historyLedgerClosedAt;
+        coreLatestLedgerEl.innerText = data.horizonInfo.coreLatestLedger;
+        networkPassphraseEl.innerText = data.horizonInfo.networkPassphrase;
+        currentProtocolVersionEl.innerText = data.horizonInfo.currentProtocolVersion;
+        supportedProtocolVersionEl.innerText = data.horizonInfo.supportedProtocolVersion;
 
     } catch(err) {
         console.error('Fetch error:', err);
