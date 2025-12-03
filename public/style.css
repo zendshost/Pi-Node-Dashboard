@@ -1,0 +1,52 @@
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #ffcc00;
+}
+
+.card {
+    background-color: #1e1e1e;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.progress-bar {
+    background-color: #333;
+    border-radius: 20px;
+    overflow: hidden;
+    height: 20px;
+    margin: 10px 0;
+}
+
+.progress {
+    background-color: #ffcc00;
+    height: 100%;
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
+canvas {
+    width: 100% !important;
+    max-height: 300px;
+}
+
+@media (max-width: 600px) {
+    .card {
+        padding: 15px;
+    }
+}
