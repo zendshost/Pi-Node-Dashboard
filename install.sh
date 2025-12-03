@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==========================================
-#  Pi Node Dashboard - Auto Installer (Pro)
+# Pi Node Dashboard - Remote Auto Installer
 # ==========================================
 
 green="\e[32m"
@@ -17,104 +17,85 @@ echo "=========================================="
 echo -e "${reset}"
 
 # ------------------------------
-# Check root
+# Require root
 # ------------------------------
 if [[ $EUID -ne 0 ]]; then
-   echo -e "${red}ERROR: Jalankan dengan sudo atau root.${reset}"
+   echo -e "${red}❌ ERROR: Skrip harus dijalankan sebagai sudo / root.${reset}"
    exit 1
 fi
 
 # ------------------------------
-# Update system
+# Install dependencies
 # ------------------------------
 echo -e "${yellow}→ Update system...${reset}"
 apt update -y
 
-# ------------------------------
-# Install Node.js LTS (18.x)
-# ------------------------------
 echo -e "${yellow}→ Install Node.js 18 LTS...${reset}"
-
 curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-apt install -y nodejs
+apt install -y nodejs git
 
-if ! command -v node &> /dev/null; then
-    echo -e "${red}ERROR: Node.js gagal diinstal.${reset}"
+if ! command -v node >/dev/null 2>&1; then
+    echo -e "${red}❌ Node.js gagal dipasang!${reset}"
     exit 1
 fi
+echo -e "${green}✔ Node.js installed: $(node -v)${reset}"
 
-echo -e "${green}✔ Node.js terinstal (versi: $(node -v))${reset}"
-echo ""
-
-# ------------------------------
-# Install PM2
-# ------------------------------
 echo -e "${yellow}→ Install PM2...${reset}"
-npm install -g pm2 &>/dev/null
-
-echo -e "${green}✔ PM2 terinstal${reset}"
-echo ""
+npm install -g pm2
+echo -e "${green}✔ PM2 installed.${reset}"
 
 # ------------------------------
-# Clone Repo
+# Clone or update repository
 # ------------------------------
-
 if [ -d "Pi-Node-Dashboard" ]; then
-    echo -e "${yellow}→ Folder Pi-Node-Dashboard sudah ada. Mengupdate repo...${reset}"
+    echo -e "${yellow}→ Directory found. Updating repository...${reset}"
     cd Pi-Node-Dashboard
     git pull
 else
-    echo -e "${yellow}→ Clone repository Pi-Node-Dashboard...${reset}"
+    echo -e "${yellow}→ Cloning Pi-Node-Dashboard...${reset}"
     git clone https://github.com/zendshost/Pi-Node-Dashboard.git
     cd Pi-Node-Dashboard
 fi
 
-echo -e "${green}✔ Repository siap${reset}"
-echo ""
+echo -e "${green}✔ Repository ready.${reset}"
 
 # ------------------------------
-# Install Dependencies
+# Install NPM dependencies
 # ------------------------------
-echo -e "${yellow}→ Install dependencies (npm install)...${reset}"
-
-npm install &>/dev/null
-
-echo -e "${green}✔ Dependencies terinstal${reset}"
-echo ""
+echo -e "${yellow}→ Installing dependencies (npm install)...${reset}"
+npm install >/dev/null 2>&1
+echo -e "${green}✔ Dependencies installed.${reset}"
 
 # ------------------------------
-# Start Server via PM2
+# Run with PM2
 # ------------------------------
-echo -e "${yellow}→ Menjalankan server dengan PM2...${reset}"
+echo -e "${yellow}→ Starting dashboard with PM2...${reset}"
 
-pm2 delete pi-dashboard &>/dev/null
+pm2 delete pi-dashboard >/dev/null 2>&1
 pm2 start server.js --name pi-dashboard
-
-pm2 save
+pm2 save >/dev/null
 pm2 startup systemd -u $USER --hp $HOME >/dev/null
 
-echo -e "${green}✔ PM2 berjalan sebagai service${reset}"
-echo ""
+echo -e "${green}✔ PM2 service created.${reset}"
 
 # ------------------------------
-# Get Server IP
+# Detect server IP
 # ------------------------------
 SERVER_IP=$(hostname -I | awk '{print $1}')
+[ -z "$SERVER_IP" ] && SERVER_IP="YOUR-SERVER-IP"
 
 echo -e "${cyan}"
 echo "=========================================="
-echo "   🎉 INSTALASI SELESAI!"
+echo "   🎉 INSTALL COMPLETE!"
 echo "=========================================="
 echo -e "${reset}"
 
-echo -e "${green}Dashboard dapat diakses di:${reset}"
-echo -e "${yellow}http://$SERVER_IP:3000${reset}"
-echo ""
+echo -e "${green}Dashboard dapat dibuka: ${yellow}http://$SERVER_IP:3000${reset}"
 
+echo ""
 echo -e "${cyan}PM2 Commands:${reset}"
 echo "  pm2 status"
 echo "  pm2 logs pi-dashboard"
 echo "  pm2 restart pi-dashboard"
 echo ""
-
-echo -e "${green}Selesai! Dashboard berjalan otomatis 24/7 🎯${reset}"
+echo -e "${green}Auto installer by zendshost.id${reset}"
