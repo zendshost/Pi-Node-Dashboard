@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pi Node Dashboard</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Pi Node Dashboard</h1>
+
+        <div class="card">
+            <h2>Docker Container</h2>
+            <p>Status: <strong id="dockerStatus">Loading...</strong></p>
+        </div>
+
+        <div class="card">
+            <h2>Stellar Core</h2>
+            <p>Status: <strong id="coreState">Loading...</strong></p>
+            <p>Ledger: <strong id="coreLedger">0</strong></p>
+            <p>Peers: <strong id="corePeers">N/A</strong></p>
+        </div>
+
+        <div class="card">
+            <h2>Horizon</h2>
+            <p>Latest Ledger: <strong id="horizonLedger">0</strong></p>
+            <p>Ledger Closed At: <strong id="horizonClosedAt">-</strong></p>
+            <div class="progress-bar">
+                <div class="progress" id="syncProgress"></div>
+            </div>
+            <p>Sync Progress: <strong id="syncPercent">0%</strong></p>
+        </div>
+
+        <div class="card">
+            <canvas id="ledgerChart"></canvas>
+        </div>
+    </div>
+
+    <script src="/script.js"></script>
+</body>
+</html>
