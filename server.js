@@ -12,16 +12,35 @@ app.set('view engine', 'ejs');
 
 const HORIZON_URL = 'http://localhost:31401';
 
-// ===== Helpers =====
+// Run shell commands safely
 function execCommand(cmd) {
     return new Promise((resolve) => {
         exec(cmd, (err, stdout, stderr) => {
-            if (err) return resolve(null);
+            if (err) return resolve('Error');
             resolve(stdout.trim());
         });
     });
 }
 
+// Read Stellar Core peer + ledger info via pi-node directly
+async function fetchCoreStatus() {
+    try {
+        const raw = await execCommand('pi-node protocol-status');
+        if (raw === 'Error') return null;
+
+        const json = JSON.parse(raw);
+
+        return {
+            state: json.info.state || 'Unknown',
+            ledger: json.info.ledger.num || 0,
+            peers: json.info.peers?.authenticated_count ?? 0
+        };
+    } catch {
+        return null;
+    }
+}
+
+// Read Horizon info
 async function fetchHorizonInfo() {
     try {
         const res = await fetch(HORIZON_URL);
@@ -54,57 +73,41 @@ async function fetchHorizonInfo() {
     }
 }
 
-async function fetchCoreStatus() {
-    const defaultStatus = { state: 'Error ❌', ledger: 0, peers: 'N/A' };
-
-    const raw = await execCommand('pi-node protocol-status');
-
-    if (!raw) return defaultStatus;
-
-    let json;
-    try {
-        json = JSON.parse(raw);
-    } catch {
-        console.log("Gagal parse Core JSON (ini normal jika belum sync)");
-        return defaultStatus;
-    }
-
-    return {
-        state: json?.info?.state === 'Synced!' ? 'Synced ✅' : json?.info?.state || 'Error ❌',
-        ledger: json?.info?.ledger?.num ?? 0,
-        peers: json?.info?.peers?.authenticated_count ?? 'N/A'
-    };
-}
-
-// ===== Routes =====
-app.get('/', (req, res) => {
-    res.render('index');
-});
+app.get('/', (req, res) => res.render('index'));
 
 app.get('/api/status', async (req, res) => {
-    const containerRaw = await execCommand('docker ps --filter "name=mainnet" --format "{{.Status}}"');
-    const containerStatus = containerRaw?.includes('Up') ? 'Running ✅' : 'Stopped ❌';
+    const dockerStatus = await execCommand('docker ps --filter "name=mainnet" --format "{{.Status}}"');
+    const containerStatus = dockerStatus.includes('Up') ? 'Running ✅' : 'Stopped ❌';
 
-    const coreStatus = await fetchCoreStatus();
-    const horizonInfo = await fetchHorizonInfo();
+    const core = await fetchCoreStatus();
+    const horizon = await fetchHorizonInfo();
 
-    const horizonStatus = {
-        latestLedger: horizonInfo.coreLatestLedger,
-        closedAt: horizonInfo.historyLedgerClosedAt
+    const coreStatus = {
+        state: core?.state || 'Error ❌',
+        ledger: core?.ledger || 0,
+        peers: core?.peers ?? 0
     };
 
-    let syncProgress = 0;
-    if (horizonStatus.latestLedger && coreStatus.ledger) {
-        syncProgress = ((horizonStatus.latestLedger / coreStatus.ledger) * 100).toFixed(2);
-    }
+    const horizonStatus = {
+        latestLedger: horizon.coreLatestLedger,
+        closedAt: horizon.historyLedgerClosedAt
+    };
+
+    const syncProgress = (
+        horizon.coreLatestLedger && coreStatus.ledger ?
+        ((horizon.coreLatestLedger / coreStatus.ledger) * 100).toFixed(2) :
+        0
+    );
 
     res.json({
         containerStatus,
         coreStatus,
         horizonStatus,
-        horizonInfo,
+        horizonInfo: horizon,
         syncProgress
     });
 });
 
-app.listen(PORT, () => console.log(`Pi Node Dashboard running at http://localhost:${PORT}`));
+app.listen(PORT, () =>
+    console.log(`Pi Node Dashboard running at http://localhost:${PORT}`)
+);
